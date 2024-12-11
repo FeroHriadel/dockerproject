@@ -2,16 +2,19 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
+import { DbCredentials } from '../types';
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 
 
-interface DbCredentials {
-  DB_HOST: string;
-  DB_PORT: '3306';
-  DB_USER: 'admin',
-  DB_PASSWORD: string;
-  DB_DATABASE: string;
-}
+// interface DbCredentials {
+//   DB_HOST: string;
+//   DB_PORT: '3306';
+//   DB_USER: 'admin',
+//   DB_DATABASE: string;
+//   secretArn: string;
+// }
 
 
 
@@ -85,8 +88,8 @@ export class RdsStack extends cdk.Stack {
       DB_HOST: this.database.dbInstanceEndpointAddress,
       DB_PORT: '3306',
       DB_USER: 'admin',
-      DB_PASSWORD: this.database.secret?.secretValueFromJson('password').unsafeUnwrap() || 'UNDEFINED!',
       DB_DATABASE: dbName, //watchout! rds will not: `CREATE DATABASE <dbName>` - this will be a manual step for u 2 do
+      secretArn: this.database.secret?.secretArn || 'secretArn UNDEFINED!'
     }
   }
 
@@ -106,9 +109,9 @@ export class RdsStack extends cdk.Stack {
       description: 'DB_HOST',
     });
 
-    new cdk.CfnOutput(this, 'DbPassword', {
-      value: this.dbCredentials.DB_PASSWORD,
-      description: 'DB_PASSWORD',
+    new cdk.CfnOutput(this, 'DbSecretArn', {
+      value: this.dbCredentials.secretArn,
+      description: 'SecretArn',
     });
 
     new cdk.CfnOutput(this, 'DbPort', {
