@@ -1,6 +1,6 @@
 /********************************************************************************************************************************************************************
-When this stack is deployed for the first time you will need to push the backend image into the created ecr repo.
-It's east to do. Run these commands:
+When this stack is deployed for the first time you will need to push the backend docker image into the created ecr repo.
+It's easy to do. Run these commands:
 
 cd backend
 aws ecr get-login-password --region us-east-1 --profile fhyahoo | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.us-east-1.amazonaws.com

@@ -1,3 +1,15 @@
+/********************************************************************************************************************************************************************
+After deploying this stack, please connect to the created RDS Instance (thru e.g.: MySqlWorkbench)
+The password for the connection will be in AWS Console / Secrets Manager
+Once connected, create a database with the name of whatever you have in .env/DB_NAME (I have `dockertestdb`). Like this:
+
+CREATE DATABASE dockertestdb;
+
+You may then start deploying the EcrStack
+********************************************************************************************************************************************************************/
+
+
+
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
