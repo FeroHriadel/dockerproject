@@ -24,7 +24,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch-logs": "^3.699.0",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

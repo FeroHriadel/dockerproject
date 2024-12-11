@@ -46,15 +46,11 @@ networks:
 ```
 NODE_ENV = dev
 PORT = 80
-
 DB_HOST = '127.0.0.1'
 DB_PORT = 3306
 DB_USER = dev_user
 DB_PASSWORD = dev_password
 DB_DATABASE = dev_db
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION=your-region
 ```
 
 - run and remove like this:
@@ -77,9 +73,6 @@ DB_PORT = 3306
 DB_USER = dev_user
 DB_PASSWORD = dev_password
 DB_DATABASE = dev_db
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION=your-region
 ```
 
 
@@ -177,44 +170,6 @@ networks:
 - it will create a mysqldb and a nodejs app inside one container
 - the nodejs app will crash at first because the db won't be ready when the nodejs starts - just restart it $ `docker start ...`
 
-
-
-### LOGGING
-- the app logs to AWS CloudWatch (note for me: the yahoo account)
-- create a user in AWS IAM and attach these privileges to them:
-
-```
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
-
-- make sure these are included in .env:
-
-```
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION=your-region
-```
-
-- the logging code is in `/src/logs/logs.ts`
-- use CloudWatchLogger like this:
-
-```
-import { logToCloudWatch } from "./logs/logs";
-await logToCloudWatch('Your message');
-```
 
 
 ### BUILD BACKEND CONTAINER:

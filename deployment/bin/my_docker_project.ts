@@ -3,6 +3,7 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { RdsStack } from '../lib/rds-stack';
 import { EcrStack } from '../lib/ecr-stack';
+import { EcsStack } from '../lib/ecs-stack';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -16,3 +17,9 @@ const account = process.env.AWS_ACCOUNT!;
 const app = new cdk.App();
 const rdsStack = new RdsStack(app, 'RdsStack', {env: {account, region}});
 const ecrStack = new EcrStack(app, 'EcrStack', {env: {account, region}});
+const ecsStack = new EcsStack(app, 'EcsStack', {
+  env: {account, region},
+  vpc: rdsStack.vpc,
+  dbCredentials: rdsStack.dbCredentials,
+  ecrRepository: ecrStack.ecrRepository
+});

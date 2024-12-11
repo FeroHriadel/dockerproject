@@ -2,7 +2,6 @@ import express from "express";
 import { connectToDatabase } from "./db/createConnection";
 import { createTables } from "./db/createTables";
 import { addAppMiddleware } from "./utils/appMiddleware";
-import { logToCloudWatch } from "./logs/logs";
 import "colors";
 import testRoutes from "./routes/testRoutes";
 import itemRoutes from "./routes/itemRoutes";
@@ -27,7 +26,8 @@ dotenv.config();
 
   //ROUTES
   app.use(express.static(path.join(__dirname, '../public')));
-  app.get("/", (req, res) => { res.sendFile(path.join(__dirname, '../public', 'index.html')); });
+  app.get("/", (req, res) => { res.sendFile(path.join(__dirname, '../public', 'index.html')); }); //serve html on "/"
+  app.get("/health", (req, res) => {res.status(200).send('OK');}); //Fargate health check
   app.use("/api/test", testRoutes);
   app.use("/api/items", itemRoutes);
 
@@ -40,7 +40,6 @@ dotenv.config();
   const port = process.env.PORT || 80;
   app.listen(port, async () => {
     console.log(`Server is up on port ${port} in ${process.env.NODE_ENV} mode`.yellow);
-    await logToCloudWatch('Server started on port 80');
   });
 
   process.on("unhandledRejection", (err: Error) => {
