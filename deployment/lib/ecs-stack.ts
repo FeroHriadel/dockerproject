@@ -33,10 +33,10 @@ export class EcsStack extends cdk.Stack {
   private ecrRepository: cdk.aws_ecr.Repository;
   private dbCredentials: DbCredentials;
   private escTaskSecurityGroup: ec2.SecurityGroup;
-  private ecsCluster: cdk.aws_ecs.Cluster;
+  public ecsCluster: cdk.aws_ecs.Cluster;
   private taskDefinition: cdk.aws_ecs.TaskDefinition;
   private container: cdk.aws_ecs.ContainerDefinition;
-  private fargateService: cdk.aws_ecs_patterns.ApplicationLoadBalancedFargateService
+  public fargateService: cdk.aws_ecs_patterns.ApplicationLoadBalancedFargateService
 
 
   constructor(scope: Construct, id: string, props: EcsStackProps) {
