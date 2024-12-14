@@ -32,9 +32,10 @@ interface PipelineStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
   ecrRepositoryUri: string;
   ecrRepositoryArn: string;
-  fargateServiceArn: string;
-  ecsClusterArn: string;
-  ecsClusterName: string;
+  ecsCluster: ecs.Cluster; 
+  ecsFargateService: cdk.aws_ecs_patterns.ApplicationLoadBalancedFargateService
+  ecsTaskDefinition: ecs.FargateTaskDefinition;
+  ecsContainer: cdk.aws_ecs.ContainerDefinition;
   githubRepo: string;
   githubOwner: string;
   githubBranch: string;
@@ -52,21 +53,21 @@ export class PipelineStack extends cdk.Stack {
   private vpc: ec2.Vpc;
   private ecrRepositoryUri: string;
   private ecrRepositoryArn: string;
-  private fargateServiceArn: string;
-  private ecsClusterArn: string;
-  private ecsClusterName: string;
+  private ecsCluster: ecs.Cluster;
+  private ecsFargateService: cdk.aws_ecs_patterns.ApplicationLoadBalancedFargateService;
+  private ecsTaskDefinition: ecs.FargateTaskDefinition;
+  private ecsContainer: cdk.aws_ecs.ContainerDefinition;
   private githubRepo: string;
   private githubOwner: string;
   private githubBranch: string;
   private githubTokenSecretArn: string;
+  private pipeline: cdk.aws_codepipeline.Pipeline;
   private sourceOutput: cdk.aws_codepipeline.Artifact;
   private sourceAction: cdk.aws_codepipeline_actions.GitHubSourceAction;
   private buildProject: cdk.aws_codebuild.PipelineProject;
   private buildOutput: cdk.aws_codepipeline.Artifact;
   private buildAction: cdk.aws_codepipeline_actions.CodeBuildAction;
   private deployAction: cdk.aws_codepipeline_actions.EcsDeployAction;
-  private pipeline: cdk.aws_codepipeline.Pipeline;
-  private deployRole: iam.Role;
 
 
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
@@ -74,9 +75,10 @@ export class PipelineStack extends cdk.Stack {
     this.vpc = props.vpc;
     this.ecrRepositoryUri = props.ecrRepositoryUri;
     this.ecrRepositoryArn = props.ecrRepositoryArn;
-    this.fargateServiceArn = props.fargateServiceArn;
-    this.ecsClusterArn = props.ecsClusterArn;
-    this.ecsClusterName = props.ecsClusterName;
+    this.ecsCluster = props.ecsCluster;
+    this.ecsFargateService = props.ecsFargateService;
+    this.ecsTaskDefinition = props.ecsTaskDefinition;
+    this.ecsContainer = props.ecsContainer;
     this.githubRepo = props.githubRepo;
     this.githubOwner = props.githubOwner;
     this.githubBranch = props.githubBranch;
@@ -85,13 +87,19 @@ export class PipelineStack extends cdk.Stack {
   }
 
   private init() {
+    this.createPipeline();
     this.createSourceStep();
     this.createBuildStep();
-    this.addBuildProjectRights();
-    this.createDeployRole();
+    this.addBuildStepRights();
     this.createDeployStep();
-    this.createPipeline();
     this.addPipelineRights();
+    this.addStagesToPipeline();
+  }
+
+  private createPipeline() {
+    this.pipeline = new codepipeline.Pipeline(this, 'DockerProjectPipeline', {
+      pipelineName: 'DockerProjectPipeline',
+    });
   }
 
   private createSourceStep() {
@@ -130,8 +138,14 @@ export class PipelineStack extends cdk.Stack {
               'cd backend',
               'docker build -t $ECR_REPO_URI:latest .',
               'docker push $ECR_REPO_URI:latest',
+              'cd ..',
+              `printf '[{"name":"%s","imageUri":"%s"}]' "${this.ecsContainer.containerName}" "$ECR_REPO_URI:latest" > imagedefinitions.json`, //creates json: [{name: containerName, imageUri}]
+              'cat imagedefinitions.json'
             ],
           },
+        },
+        artifacts: {
+          files: ['imagedefinitions.json'],
         },
       }),
     });
@@ -145,7 +159,7 @@ export class PipelineStack extends cdk.Stack {
     });
   }
 
-  private addBuildProjectRights() {
+  private addBuildStepRights() {
     // Allow getting ECR authorization token (needs to be at account level)
     this.buildProject.addToRolePolicy(
       new iam.PolicyStatement({
@@ -173,93 +187,65 @@ export class PipelineStack extends cdk.Stack {
     );
   }
 
-  private createDeployRole() {
-    // Create the role with basic trust relationship
-    this.deployRole = new iam.Role(this, 'EcsDeployActionRole', {
-      assumedBy: new iam.ServicePrincipal('codepipeline.amazonaws.com'),
-      roleName: `${this.stackName}-ecs-deploy-role`,
-    });
-  
-    // Add necessary permissions to the role
-    this.deployRole.addToPolicy(new iam.PolicyStatement({
-      actions: [
-        'ecs:DescribeServices',
-        'ecs:DescribeTaskDefinition',
-        'ecs:DescribeTasks',
-        'ecs:ListTasks',
-        'ecs:RegisterTaskDefinition',
-        'ecs:UpdateService'
-      ],
-      resources: ['*']
-    }));
-  }
 
-  private createDeployStep() { 
+  private createDeployStep() {
     this.deployAction = new codepipelineActions.EcsDeployAction({
-      actionName: 'Deploy_to_Fargate',
-      service: ecs.FargateService.fromFargateServiceAttributes(this, 'FargateService', {
-        serviceArn: this.fargateServiceArn,
-        cluster: ecs.Cluster.fromClusterAttributes(this, 'Cluster', {
-          clusterArn: this.ecsClusterArn,
-          clusterName: this.ecsClusterName,
-          vpc: this.vpc,
-        }),
-      }),
-      input: this.buildOutput,
-      role: this.deployRole
+      actionName: 'ECS_Deploy',
+      service: this.ecsFargateService.service,
+      imageFile: new codepipeline.ArtifactPath(
+        this.buildOutput,
+        'imagedefinitions.json'
+      )
     });
   }
   
-  private createPipeline() {
-    //create pipeline
-    this.pipeline = new codepipeline.Pipeline(this, 'Pipeline', {
-      stages: [
-        {
-          stageName: 'Source',
-          actions: [this.sourceAction],
-        },
-        {
-          stageName: 'Build',
-          actions: [this.buildAction],
-        },
-        {
-          stageName: 'Deploy',
-          actions: [this.deployAction],
-        },
-      ],
-    });
-  }
-
-  //it's okay to add rights at the end - CDK figures it out and creates rights first, only then does it deploy resources...
+  
+  
   private addPipelineRights() {
-    //Allow pipeline to access github-token in Secrets Manager (sourceAction neeeds it)
+    //Can access github-token in Secrets Manager (sourceAction neeeds it)
     this.pipeline.role.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [this.githubTokenSecretArn]
       })
     );
-    //Allow the pipeline to assume CodeBuild.role (we customized CodeBuild.role by allowing it to push to ECR -that's why we have to let pipeline assume its role)
+    //Can assume CodeBuild.role (we customized CodeBuild.role by allowing it to push to ECR -that's why we have to let pipeline assume its role)
     this.pipeline.role.addToPrincipalPolicy( 
       new iam.PolicyStatement({
         actions: ['sts:AssumeRole'],
         resources: [this.buildProject.role!.roleArn]
       })
     );
-    //Add pipeline role to deploy role's policy
-    this.deployRole.assumeRolePolicy?.addStatements(
-      new iam.PolicyStatement({
-        actions: ['sts:AssumeRole'],
-        principals: [new iam.ArnPrincipal(this.pipeline.role.roleArn)]
-      })
-    );
-    // Add permission to pipeline role to assume deploy role
+    //Can work with ECS
     this.pipeline.role.addToPrincipalPolicy(
       new iam.PolicyStatement({
-        actions: ['sts:AssumeRole'],
-        resources: [this.deployRole.roleArn]
+        actions: [
+          'ecs:UpdateService',
+          'ecs:DescribeServices',
+          'ecs:DescribeTaskDefinition',
+          'ecs:RegisterTaskDefinition',
+          'elasticloadbalancing:DeregisterTargets',
+          'elasticloadbalancing:RegisterTargets',
+          'elasticloadbalancing:Describe*',
+        ],
+        resources: ['*'],
       })
     );
+  }
+
+  private addStagesToPipeline() {
+    this.pipeline.addStage({
+      stageName: 'Source',
+      actions: [this.sourceAction],
+    });
+    this.pipeline.addStage({
+      stageName: 'Build',
+      actions: [this.buildAction],
+    });
+    this.pipeline.addStage({
+      stageName: 'Deploy',
+      actions: [this.deployAction],
+    });
   }
 
 }

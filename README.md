@@ -75,3 +75,21 @@ docker push <your-account-id>.dkr.ecr.us-east-1.amazonaws.com/nodejs-api:latest
 ### STEP 3 - DEPLOY ECS
 - $ `cdk deploy EcsStack --profile fhyahoo`
 - Once deployed go to the http://FargateEndpoint that prints after the deployment and check the server is running.
+
+### STEP 4 - DEPLOY PIPELINE
+Before deploying Pipeline stack a manual step must be taken: Go to github, create access token and put it in Secrets Manager.
+Put the github token & other github details into .env
+
+- Create a github token like this:
+  go to your Github / click ur profile picture (right up) / Settings (left sidebar) Developer Settings / Personal Access Tokens / Tokens (classic) Generate new token / choose classic / Select scopes: repo & admin:repo_hook / name it e.g.: `github-token` / Generate token Copy the value of the token (something like: `ghp_66PWc461Drgh0nvEFiiKnsabzPJtZf2583Wq`)
+
+- Put the github token in AWS / SECRETS MANAGER under the name github-token like this:
+  copy the value of the github-token and go to AWS / SECRETS MANAGER / Store a new secret / Other type of secret / Next in Key/value pair section click Plaintext tab and paste the github-token there / Next / Secret name: github-token / Next / complete the procedure…
+
+- add the Secret Manager github-token arn into .env + add your github details:
+  GITHUB_TOKEN_SECRET_ARN=arn:aws:secretsmanager:us-east-1:991342932037:secret:github-token-SZacAA
+  GITHUB_OWNER=FeroHriadel
+  GITHUB_REPO=dockerproject
+  GITHUB_BRANCH=main
+
+- $ `cdk deploy PipelineStack --profile fhyahoo`

@@ -34,8 +34,8 @@ export class EcsStack extends cdk.Stack {
   private dbCredentials: DbCredentials;
   private escTaskSecurityGroup: ec2.SecurityGroup;
   public ecsCluster: cdk.aws_ecs.Cluster;
-  private taskDefinition: cdk.aws_ecs.TaskDefinition;
-  private container: cdk.aws_ecs.ContainerDefinition;
+  public taskDefinition: cdk.aws_ecs.TaskDefinition;
+  public container: cdk.aws_ecs.ContainerDefinition;
   public fargateService: cdk.aws_ecs_patterns.ApplicationLoadBalancedFargateService
 
 
